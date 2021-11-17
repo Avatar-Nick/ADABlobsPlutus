@@ -41,7 +41,8 @@ common lang
 library
     import: lang
     exposed-modules:
-      MyModule
+      Auction
+      BuySell
       Plutus.Contracts.Game
     build-depends:
       base >= 4.9 && < 5,
@@ -53,7 +54,9 @@ library
       plutus-contract,
       plutus-tx-plugin,
       plutus-tx,
-      plutus-ledger,
+      plutus-ledger,      
+      plutus-chain-index,
+      text,
     hs-source-dirs: src examples/src
 
 test-suite plutus-example-projects-test
