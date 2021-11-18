@@ -57,6 +57,7 @@ library
       plutus-ledger,      
       plutus-chain-index,
       text,
+      data-default,
     hs-source-dirs: src examples/src
 
 test-suite plutus-example-projects-test

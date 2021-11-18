@@ -7,6 +7,7 @@
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE NoImplicitPrelude          #-}
+{-# LANGUAGE NumericUnderscores         #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
@@ -21,12 +22,14 @@
 module Auction where
 
 import           Control.Monad        hiding (fmap)
+import           Data.Default         (Default (..))
 import           Data.Aeson           (ToJSON, FromJSON)
 import           Data.List.NonEmpty   (NonEmpty (..))
 import           Data.Map             as Map
 import           Data.Text            (pack, Text)
 import           GHC.Generics         (Generic)
 import           Plutus.Contract
+import           Plutus.Contract.Trace as Trace
 import           Plutus.ChainIndex.Tx
 import qualified PlutusTx             as PlutusTx
 import           PlutusTx.Prelude     hiding (Semigroup(..), unless)
@@ -44,6 +47,8 @@ import           Playground.Types     (KnownCurrency (..))
 import           Prelude              (IO, Semigroup (..), Show (..), String)
 import           Schema               (ToSchema)
 import           Text.Printf          (printf)
+import           Plutus.Trace.Emulator as Emulator
+import           Wallet.Emulator.Wallet
 
 --------------------------------------------------------------------------------------------------
 -- On Chain Code
@@ -289,7 +294,7 @@ start = endpoint @"start" @StartParams $ \(StartParams{..}) -> do
 
 bid :: AsContractError e => Promise () AuctionSchema e ()
 bid = endpoint @"bid" @BidParams $ \(BidParams{..}) -> do
-    logInfo @String (printf "Starting bid endpoint")
+    logInfo @String (printf "Inside bid endpoint")
     (outputReference, chainTxOut, auctionDatum@AuctionDatum{..}) <- findAuction bpCurrency bpToken
 
     now <- currentTime
@@ -324,7 +329,7 @@ bid = endpoint @"bid" @BidParams $ \(BidParams{..}) -> do
 
 close :: AsContractError e => Promise () AuctionSchema e ()
 close = endpoint @"close" @CloseParams $ \(CloseParams{..}) -> do
-    logInfo @String (printf "Starting close endpoint")
+    logInfo @String (printf "Inside close endpoint")
     (outputReference, chainTxOut, auctionDatum@AuctionDatum{..}) <- findAuction cpCurrency cpToken
     
     pkh <- Plutus.Contract.ownPubKeyHash --pubKeyHash <$> Plutus.Contract.ownPubKey
@@ -388,40 +393,58 @@ myToken = KnownCurrency (ValidatorHash "f") "Token" (TokenName "T" :| [])
 mkKnownCurrencies ['myToken]
 
 
-{-
+assetSymbol :: CurrencySymbol
+assetSymbol = "66"
+
+assetToken :: TokenName
+assetToken = "T"
+
 test :: IO()
-test = runEmulatorTradeIO myTrace
+test = Emulator.runEmulatorTraceIO' def emulatorConfig myTrace
+
+emulatorConfig :: EmulatorConfig
+emulatorConfig = EmulatorConfig (Left $ Map.fromList [(Trace.knownWallet i, v) | i <- [1 .. 3]]) def def
+    where
+        v :: Value
+        v = Ada.lovelaceValueOf                    100000000 <>
+            Value.singleton assetSymbol assetToken 1
 
 myTrace :: EmulatorTrace()
 myTrace = do
-    h1 <- activateContractWallet (Wallet 1) endpoints
-    h2 <- activateContractWallet (Wallet 2) endpoints
-    callEndpoint @"start" h1 $ StartParams
+    let w1 = Trace.knownWallet 1
+        w2 = Trace.knownWallet 2
+
+    h1 <- Emulator.activateContractWallet w1 (start @ContractError)
+    void $ Emulator.waitNSlots 1
+
+    h2 <- Emulator.activateContractWallet w2 (bid @ContractError)
+    void $ Emulator.waitNSlots 1
+
+    h3 <- Emulator.activateContractWallet w1 (close @ContractError)
+    void $ Emulator.waitNSlots 1
+
+    Emulator.callEndpoint @"start" h1 $ StartParams
         {
-            spCurrency = 66,
-            spToken = "T",
+            spCurrency = assetSymbol,
+            spToken = assetToken,
             spBid = 100,
             spBidPercentIncrease = 5,
             spStartTime = 1596000000000,
-            spBidTimeIncrement = 172800000,
+            spBidTimeIncrement = 172800000
         }
+    void $ Emulator.waitNSlots 1
 
-    void $ waitUntilSlot 20
-
-    callEndpoint @"bid" h2 $ BidParam
+    Emulator.callEndpoint @"bid" h2 $ BidParams
         {
-            spCurrency = 66,
-            spToken = "T",
-            spBid = 5000,
+            bpCurrency = "66",
+            bpToken = "T",
+            bpBid = 500000
         }
+    void $ Emulator.waitNSlots 1
 
-    void $ waitNSlots 1
-
-    callEndpoint @"close" h1 $ CloseParams
+    Emulator.callEndpoint @"close" h3 $ CloseParams
         {
-            spCurrency = 66,
-            spToken = "T",
+            cpCurrency = "66",
+            cpToken = "T"
         }
-
-    void $ waitNSlots 1
--}
+    void $ Emulator.waitNSlots 1
