@@ -1,5 +1,5 @@
 cabal-version:      2.4
-name:               plutus-starter
+name:               adablobs
 version:            0.1.0.0
 
 -- A short (one-line) description of the package.
@@ -42,59 +42,45 @@ library
     import: lang
     exposed-modules:
       Auction
-      BuySell
-      Plutus.Contracts.Game
+      Trade
     build-depends:
       base >= 4.9 && < 5,
       aeson,
       bytestring,
+      cardano-api,
       containers,
       freer-extras,
       playground-common,
       plutus-contract,
       plutus-tx-plugin,
       plutus-tx,
-      plutus-ledger,      
+      plutus-ledger,   
+      plutus-ledger-api,      
       plutus-chain-index,
       text,
       data-default,
-    hs-source-dirs: src examples/src
+      serialise,
+    hs-source-dirs: src src/Auction src/Trade src/Test
 
-test-suite plutus-example-projects-test
-  import: lang
-  type: exitcode-stdio-1.0
-  main-is: Spec.hs
-  hs-source-dirs: examples/test
-  other-modules:
-    Spec.Game
-  build-depends:
-    plutus-tx -any,
-    plutus-tx-plugin,
-    plutus-contract -any,
-    plutus-ledger -any,
-    plutus-starter -any
-  build-depends:
-    base >=4.9 && <5,
-    tasty -any,
-    tasty-hunit -any,
-    tasty-hedgehog >=0.2.0.0
-
-executable plutus-starter-pab
-  import: lang
-  main-is: Main.hs
-  hs-source-dirs: pab
-  ghc-options:
-    -threaded
+executable plutus-auction
+  import:         lang
+  hs-source-dirs: app
+  main-is:        plutus-auction.hs
+  ghc-options:    -threaded
   build-depends:
     base >= 4.9 && < 5,
+    bytestring,
+    cardano-api -any,
+    cardano-ledger-alonzo -any,
     data-default -any,
     plutus-contract -any,
     plutus-pab -any,
-    plutus-starter -any,
+    adablobs -any,
     aeson -any,
     freer-simple -any,
     prettyprinter -any,
     freer-extras -any,
     plutus-ledger -any,
+    plutus-ledger-api -any,
     openapi3 -any,
-
+    serialise -any,
