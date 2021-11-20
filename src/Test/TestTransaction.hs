@@ -21,7 +21,8 @@
 module TestTransaction 
     (
         testTransactionScript,
-        testTransactionScriptShortBs
+        testTransactionScriptShortBs,
+        testTransaction
     ) where
 
 import           Cardano.Api.Shelley  (PlutusScript (..), PlutusScriptV1)
@@ -29,12 +30,15 @@ import           Control.Monad        hiding (fmap)
 import           Codec.Serialise
 import qualified Data.ByteString.Lazy  as LBS
 import qualified Data.ByteString.Short as SBS
+
+import           Data.Default         (Default (..))
 import           Data.Aeson           (ToJSON, FromJSON)
 import           Data.List.NonEmpty   (NonEmpty (..))
 import           Data.Map             as Map
 import           Data.Text            (pack, Text)
 import           GHC.Generics         (Generic)
 import           Plutus.Contract
+import           Plutus.Contract.Trace as Trace
 import           Plutus.ChainIndex.Tx
 import qualified PlutusTx             as PlutusTx
 import           PlutusTx.Prelude     hiding (Semigroup(..), unless)
@@ -52,6 +56,8 @@ import           Playground.Types     (KnownCurrency (..))
 import           Prelude              (IO, Semigroup (..), Show (..), String)
 import           Schema               (ToSchema)
 import           Text.Printf          (printf)
+import           Plutus.Trace.Emulator as Emulator
+import           Wallet.Emulator.Wallet
 
 --------------------------------------------------------------------------------------------------
 -- On Chain Code
@@ -165,3 +171,33 @@ endpoints = contract
 mkSchemaDefinitions ''TestTransactionSchema
 
 mkKnownCurrencies []
+
+--------------------------------------------------------------------------------------------------
+-- Test Code
+--------------------------------------------------------------------------------------------------
+testTransaction :: IO()
+testTransaction = Emulator.runEmulatorTraceIO' def emulatorConfig myTrace
+
+emulatorConfig :: EmulatorConfig
+emulatorConfig = EmulatorConfig (Left $ Map.fromList [(Trace.knownWallet i, v) | i <- [1 .. 3]]) def def
+    where
+        v :: Value
+        v = Ada.lovelaceValueOf 100000000
+
+myTrace :: EmulatorTrace()
+myTrace = do
+    let w1 = Trace.knownWallet 1
+        w2 = Trace.knownWallet 2
+        w3 = Trace.knownWallet 3
+
+    hW1Give <- Emulator.activateContractWallet w1 (give @ContractError)
+    void $ Emulator.waitNSlots 1
+
+    hW2Grab <- Emulator.activateContractWallet w2 (grab @ContractError)
+    void $ Emulator.waitNSlots 1
+
+    Emulator.callEndpoint @"give" hW1Give $ 100000
+    void $ Emulator.waitNSlots 1
+
+    Emulator.callEndpoint @"grab" hW2Grab $ ()
+    void $ Emulator.waitNSlots 1

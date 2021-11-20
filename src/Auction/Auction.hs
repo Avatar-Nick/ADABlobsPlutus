@@ -23,6 +23,7 @@ module Auction
   (
       auctionScript
     , auctionScriptShortBs
+    , testAuction
   ) where
 
 import           Cardano.Api.Shelley  (PlutusScript (..), PlutusScriptV1)
@@ -420,8 +421,8 @@ assetSymbol = "66"
 assetToken :: TokenName
 assetToken = "T"
 
-test :: IO()
-test = Emulator.runEmulatorTraceIO' def emulatorConfig myTrace
+testAuction :: IO()
+testAuction = Emulator.runEmulatorTraceIO' def emulatorConfig myTrace
 
 emulatorConfig :: EmulatorConfig
 emulatorConfig = EmulatorConfig (Left $ Map.fromList [(Trace.knownWallet i, v) | i <- [1 .. 3]]) def def
@@ -477,7 +478,7 @@ myTrace = do
             bpBid = 600000
         }
     void $ Emulator.waitNSlots 1
-
+    
     -- The call below correctly does not close the auction when I am using the "seller cannot close auction code"
     {-
     Emulator.callEndpoint @"close" hW3Close $ CloseParams
