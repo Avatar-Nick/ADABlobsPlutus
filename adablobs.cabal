@@ -43,6 +43,7 @@ library
     exposed-modules:
       Auction
       Trade
+      TestTransaction
     build-depends:
       base >= 4.9 && < 5,
       aeson,
@@ -66,6 +67,29 @@ executable plutus-auction
   import:         lang
   hs-source-dirs: app
   main-is:        plutus-auction.hs
+  ghc-options:    -threaded
+  build-depends:
+    base >= 4.9 && < 5,
+    bytestring,
+    cardano-api -any,
+    cardano-ledger-alonzo -any,
+    data-default -any,
+    plutus-contract -any,
+    plutus-pab -any,
+    adablobs -any,
+    aeson -any,
+    freer-simple -any,
+    prettyprinter -any,
+    freer-extras -any,
+    plutus-ledger -any,
+    plutus-ledger-api -any,
+    openapi3 -any,
+    serialise -any,
+
+executable plutus-test
+  import:         lang
+  hs-source-dirs: app
+  main-is:        plutus-test.hs
   ghc-options:    -threaded
   build-depends:
     base >= 4.9 && < 5,

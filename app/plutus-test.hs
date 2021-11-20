@@ -10,7 +10,7 @@ import qualified Plutus.V1.Ledger.Api as Plutus
 
 import qualified Data.ByteString.Short as SBS
 
-import           Auction (auctionScript, auctionScriptShortBs)
+import           TestTransaction (testTransactionScript, testTransactionScriptShortBs)
 
 main :: IO ()
 main = do
@@ -19,7 +19,7 @@ main = do
   let scriptnum = if nargs > 0 then read (args!!0) else 42
   let scriptname = if nargs > 1 then args!!1 else  "result.plutus"
   putStrLn $ "Writing output to: " ++ scriptname
-  writePlutusScript scriptnum scriptname auctionScript auctionScriptShortBs
+  writePlutusScript scriptnum scriptname testTransactionScript testTransactionScriptShortBs
 
 writePlutusScript :: Integer -> FilePath -> PlutusScript PlutusScriptV1 -> SBS.ShortByteString -> IO ()
 writePlutusScript scriptnum filename scriptSerial scriptSBS =
