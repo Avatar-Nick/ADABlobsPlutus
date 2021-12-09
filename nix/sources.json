@@ -1,4 +1,16 @@
 {
+    "cardano-node": {
+        "branch": "master",
+        "description": "The core component that is used to participate in a Cardano decentralised blockchain.",
+        "homepage": "https://cardano.org",
+        "owner": "input-output-hk",
+        "repo": "cardano-node",
+        "rev": "1.31.0",
+        "sha256": "0x5j0cynlc9kiyj9w7casax477z3fb74pfsyfl373dn7rv1grg4d",
+        "type": "tarball",
+        "url": "https://github.com/input-output-hk/cardano-node/archive/1.31.0.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "plutus-apps": {
         "branch": "master",
         "description": "The Plutus application platform",

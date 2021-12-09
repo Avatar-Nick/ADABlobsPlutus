@@ -1,202 +1,293 @@
-# Plutus Platform starter project
+# A NFT Auction Smart Contract
 
-This project gives a simple starter project for using the Plutus Platform.
+This repo contains the source for a Plutus NFT auction smart contract. The source for the smart contract is located in `src/Auction/Auction.hs`.
 
-## Setting up
+The repo also contains an executable for compiling the smart contract in `app/Main.hs`.
 
-### VSCode devcontainer
+## Building
 
-Use the provided VSCode devcontainer to get an environment with the correct tools set up.
+The compile the code to a Plutus smart contract, run:
 
-- Install Docker
-- Install VSCode
-  - Install the [Remote Development extension pack](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.vscode-remote-extensionpack)
-  - You do *not* need to install the Haskell extension
-- Ensure you have a `~/.cabal/packages` folder. You can create this via `mkdir -p ~/.cabal/packages`; it's used to cache cabal packages.
-- Clone this repository and open it in VSCode
-  - It will ask if you want to open it in the container, say yes.
-  - The first time it will take a few minutes to download the devcontainer image from dockerhub,
-  - `cabal build` from the terminal should work (unless you didn't have a `~/.cabal` folder, in which case you'll need to run `cabal update` first.)
-  - Opening a Haskell file should give you IDE features (it takes a little while to set up the first time)
-
-Note: This uses the [plutus-starter-devcontainer image on dockerhub](https://hub.docker.com/r/inputoutput/plutus-starter-devcontainer), if
-you wish to build the image yourself, you can do so as follows:
-  - Clone https://github.com/input-output-hk/plutus,
-  - Set up your machine to build things with Nix, following the [Plutus README](https://github.com/input-output-hk/plutus/blob/master/README.adoc) (make sure to set up the binary cache!),
-  - Build and load the docker container: `docker load < $(nix-build default.nix -A devcontainer)`,
-  - Adjust the `.devcontainer/devcontainer.json` file to point to your local image.
-
-### Cabal+Nix build
-
-Alternatively, use the Cabal+Nix build if you want to develop with incremental builds, but also have it automatically download all dependencies.
-
-Set up your machine to build things with `Nix`, following the [Plutus README](https://github.com/input-output-hk/plutus/blob/master/README.adoc) (make sure to set up the binary cache!).
-
-To enter a development environment, simply open a terminal on the project's root and use `nix-shell` to get a bash shell:
-
-```
-$ nix-shell
+```bash
+cabal run create-auction-sc
 ```
 
-Otherwise, you can use [direnv](https://github.com/direnv/direnv) which allows you to use your preferred shell. Once installed, just run:
+This will write a file to `scripts/auction.plutus`
+
+A `shell.nix` is also providing for nix users.
+
+## Creating the Script Address
+
+After compiling the smart contract, it is necessary to make a script address.
+
+First source either the testnet or mainnet environment variables.
+
+For testnet
 
 ```
-$ echo "use nix" > .envrc # Or manually add "use nix" in .envrc if you already have one
-$ direnv allow
+$ source scripts/envars/testnet-env.envvars
 ```
 
-and you'll have a working development environment for now and the future whenever you enter this directory.
-
-The build should not take too long if you correctly set up the binary cache. If it starts building GHC, stop and setup the binary cache.
-
-Afterwards, the command `cabal build` from the terminal should work (if `cabal` couldn't resolve the dependencies, run `cabal update` and then `cabal build`).
-
-Also included in the environment is a working [Haskell Language Server](https://github.com/haskell/haskell-language-server) you can integrate with your editor.
-See [here](https://github.com/haskell/haskell-language-server#configuring-your-editor) for instructions.
-
-## The Plutus Application Backend (PAB) example
-
-We have provided an example PAB application in `./pab`. With the PAB we can serve and interact
-with contracts over a web API. You can read more about the PAB here: [PAB Architecture](https://github.com/input-output-hk/plutus-apps/blob/main/plutus-pab/ARCHITECTURE.adoc).
-
-Here, the PAB is configured with one contract, the `Game` contract from `./examples/src/Plutus/Contracts/Game.hs`.
-
-Here's an example of running and interacting with this contract via the API. For this it will help if you
-have `jq` installed.
-
-1. Build the PAB executable:
+For mainnet
 
 ```
-cabal build plutus-starter-pab
+$ source scripts/envars/mainnet-env.envvars
 ```
 
-2. Run the PAB binary:
+The environment variable files set `CARDANO_NODE_SOCKET_PATH` to the path of the appropriate Daedalus socket file (either Testnet Daedalus or the regular mainnet Daedalus). It you run a `cardano-node` on your own you should set this environment variable to your socket file location after sourcing the environment variable file.
 
-```
-cabal exec -- plutus-starter-pab
-````
+Next, run:
 
-This will then start up the server on port 9080. The devcontainer process will then automatically expose this port so that you can connect to it from any terminal (it doesn't have to be a terminal running in the devcontainer).
-
-First, let's verify that the game is present in the server:
-
-3. Check what contracts are present:
-
-```
-curl -s http://localhost:9080/api/contract/definitions | jq
+```bash
+scripts/hash-plutus.sh
 ```
 
-You should receive a list of contracts and the endpoints that can be called on them, and the arguments
-required for those endpoints.
+This will make the files `testnet/auction.addr` or `mainnet/auction.addr`.
 
-We're interested in the `GameContract` one.
+## Example Transactions
 
-#### Playing the guessing game over the API
+Example transactions can be found in `scripts/core`. The scripts are used by other scripts in `scripts/happy-path` which demonstrates how to start, bid and close the auction.
 
-The game has two players (wallets). One will initialise the contract and lock a value inside. Another
-wallet will then make guesses. Supposing they guess correctly, they'll receive the funds that were
-locked; otherwise, they won't!
+## Example Redeemers and Datums
 
+Example redeemers are found in `scripts/testnet/redeemers` and example datums are found in `scripts/datums`.
 
-1. Create wallets
-```
-export WALLET_ID_1=`curl -s -d '' http://localhost:9080/wallet/create | jq '.wiWallet.getWalletId'`
-export WALLET_ID_2=`curl -s -d '' http://localhost:9080/wallet/create | jq '.wiWallet.getWalletId'`
-```
+Here is the Haskell type of the Datum
 
-2. Start the instances:
-
-```
-# Wallet 1
-curl -s -H "Content-Type: application/json" \
-  --request POST \
-  --data '{"caID": "GameContract", "caWallet":{"getWalletId": '$WALLET_ID_1'}}' \
-  http://localhost:9080/api/contract/activate | jq
-
-# Wallet 2
-curl -s -H "Content-Type: application/json" \
-  --request POST \
-  --data '{"caID": "GameContract", "caWallet":{"getWalletId": '$WALLET_ID_2'}}' \
-  http://localhost:9080/api/contract/activate | jq
+```haskell
+data Auction = Auction
+  { aSeller            :: !PubKeyHash
+  , aStartTime         :: !POSIXTime
+  , aDeadline          :: !POSIXTime
+  , aMinBid            :: !Integer
+  , aCurrency          :: !CurrencySymbol
+  , aToken             :: !TokenName
+  , aPayoutPercentages :: !(A.Map PubKeyHash Integer)
+  , aHighBid           :: !(Maybe Bid)
+  }
 ```
 
-From these two queries you will get back two contract instance IDs. These will be needed
-in the subsequent steps for running actions against. We can optionally take a look at the state
-of the contract with the `status` API:
+A crucial note is the `aPayoutPercentages` field which is used to determine how to distribute the winning bid. Instead of going entirely to seller it is split up using the percentages in the map, as described in detail below.
 
-3. Get the status
+## Understanding the Price Calculation
 
-```
-export INSTANCE_ID=...
-curl -s http://localhost:9080/api/contract/instance/$INSTANCE_ID/status | jq
-```
+When the auction is finished, assuming there is winning bid, the funds are distributed to multiple parties as described by the percentages map.
 
-This has a lot of information; and in particular we can see what endpoints are still available
-to call.
+The map is collection of pairs of public key hash and percentage. The percentages are stored as integers times 1000, so 2.5% would be stored as 25.
 
-4. Start the game by locking some value inside
+The calculation to determine how much to give each party is not as straightforward as one would imagine because of minimum Ada UTxO requirements.
 
-Now, let's call the `lock` endpoint to start the game. In order to do so, we need to construct
-a JSON representation of the `LockParams` that the endpoint takes (look at `Game.hs`). The easiest
-way is to simply build the term in haskell and ask `aeson` to encode it. From the terminal:
+Regardless of the percentage, every participant recieves a minimum of 1 Ada.
+
+For example, if there were three (seller, marketplace and royalty) users and percentages were 95%, 2.5% and 2.5%, 10,000,000 lovelaces would distributed as follows:
 
 ```
-cabal repl
-> import Plutus.Contracts.Game
-> import Ledger.Ada
-> args = LockParams { secretWord = "eagle", amount = lovelaceValueOf 90 }
-> import Data.Aeson
-> import Data.ByteString.Lazy.Char8 as BSL
-> BSL.putStrLn $ encode args
-{"amount":{"getValue":[[{"unCurrencySymbol":""},[[{"unTokenName":""},90]]]]},"secretWord":"eagle"}
+seller: 8,000,000
+marketplace: 1,000,000
+royalty: 1,000,000
 ```
 
-Great! This is all we need to call the `lock` endpoint, so let's do that now with
-the instance from Wallet 1:
-
-5. Lock some value (Wallet 1)
+This is in contrast to the split as dicated by the percentages directly, which would have been:
 
 ```
-export INSTANCE_ID=...
-curl -H "Content-Type: application/json" \
-  --request POST \
-  --data '{"amount":{"getValue":[[{"unCurrencySymbol":""},[[{"unTokenName":""},90]]]]},"secretWord":"eagle"}' \
-  http://localhost:9080/api/contract/instance/$INSTANCE_ID/endpoint/lock
+seller: 9,500,000
+marketplace: 250,000
+royalty: 250,000
 ```
 
-We can do likewise to work out what the JSON for `GuessParams` is, and then make a guess from
-Wallet 2:
-
-6. Make a guess (Wallet 2)
+Here is another example with percentages were 80%, 15% and 5% with 10,000,000 lovelaces:
 
 ```
-export INSTANCE_ID=...
-curl -H "Content-Type: application/json" \
-  --request POST \
-  --data '{"guessWord": "duck"}' \
-  http://localhost:9080/api/contract/instance/$INSTANCE_ID/endpoint/guess
+seller: 7,578,948
+marketplace: 1,421,052
+royalty: 1,000,000
 ```
 
-Note that this guess is wrong, so in the log of the server we will see that the transaction
-didn't validate.
+The extra 500,000 that was needed to give the royalty user 1 Ada, was taken equally from the seller and marketplace portions.
 
-As an exercise, you can now spin up another instance for Wallet 2 and make a correct guess, and
-confirm that the transaction validates and the Ada is transferred into the right wallet.
+The exact calculation is as follows.
 
-Note that you can verify the balances by looking at the log of `plutus-starter-pab`
-when exiting it by pressing return.
+The percentages are sorted least to greatest. For each percentage the percentage is multiplied times the current total amount and divided by 1000 (remember the percentages are multiplied times a 10 so 2.5% is 25). If the portion is less than 1 Ada it is set to 1 Ada. The portion for this user is subtracted from the current total and their percentage is subtracted from the total percentages.
 
-Finally, also node that the PAB also exposes a websocket, which you can read about in
-the general [PAB Architecture documentation](https://github.com/input-output-hk/plutus-apps/blob/main/plutus-pab/ARCHITECTURE.adoc).
+The loop starts again, with a new current total and a new current total percentages. The next percentage is adjusted by dividing by the new total percentage.
 
+This process continues until the last element, which just get's whatever is left over.
 
-## Support/Issues/Community
+Let's revisit our example above to see how it works.
 
-If you're looking for support, or would simply like to report a bug, feature
-request, etc please do so over on the main [plutus
-repository](https://github.com/input-output-hk/plutus).
+The first time through the loop we multiple 50 * 10,000,000 and divide by 1,000 to get 500,000. This is less than 1 Ada (1,000,000) so we set the portion this user gets to 1 Ada. We subtract 1 Ada from the total to get 9 Ada and subtract 50 from the total percent (times 10) to get 950.
 
-For more interactive discussion, you can join the [IOG Technical Community
-Discord](https://discord.gg/sSF5gmDBYg).
+For the next iteration we multiple 150 * 9,000,000 and divide by 950 to get 1,421,052. This is greater than 1 Ada so we don't have to adjust it. We subtract 1,421,052 from 9,000,000 to get 7,578,947. We subtract 150 from 950 to get 800.
 
-Thanks!
+For the final iteration through the loop we just give the user the rest which is 7,578,947.
+
+## Unit Tests
+
+Because the divided up the price to various participants is so complicated there are unit tests to cover this logic specifically.
+
+Run the unit tests by calling:
+
+```bash
+$ cabal test
+```
+
+## Full System Testing Prerequistes
+
+Before testing you need to make sure you have `cardano-cli` installed and on your path, and it must be version 1.31.0 or greater. You will also need the json utility `jq` as well as `cardano-cli` helper `cardano-cli-balance-fixer` which can be downloaded here: https://github.com/Canonical-LLC/cardano-cli-balance-fixer
+
+## Init (only done once)
+
+First create the wallets and get the protocol parameters.
+
+```
+$ ./scripts/wallets/make-all-wallets.sh
+$ ./scripts/query-protocol-parameters.sh
+```
+
+# Manual Testing
+
+We will walk through the process of manually testing a start, bid, outbid and close flow.
+
+After following the setup steps above, first make sure that the `~/$BLOCKCHAIN_PREFIX/seller.addr` has Ada.
+
+Start by minting a token for the auction:
+
+```bash
+$ scripts/mint-0-policy.sh
+```
+
+Wait for the next slot:
+
+```bash
+$ scripts/wait/until-next-block.sh
+```
+
+You can now view the minted token in the `seller`'s wallet:
+
+```bash
+$ scripts/query/seller.sh
+```
+
+Now start the auction by calling:
+
+```bash
+$ scripts/happy-path/lock-tx.sh 400000 0
+```
+
+This will create a auction that expires in 400 seconds. The `0` is namespace so we can have more than one auction going at a time.
+
+Wait for the next slot:
+
+```bash
+$ scripts/wait/until-next-block.sh
+```
+
+You can now view the token at the smart contract address:
+
+```bash
+$ scripts/query/sc.sh
+```
+
+Make sure that the `~/$BLOCKCHAIN_PREFIX/seller.addr` has over 11 Ada.
+
+Now create a bid:
+
+```bash
+$ scripts/happy-path/bid-1-tx.sh
+```
+
+Wait for the next slot, and query the script address
+
+```bash
+$ scripts/query/sc.sh
+```
+
+It should show the additional 10 Ada bid is now stored there.
+
+Make sure that the `~/$BLOCKCHAIN_PREFIX/buyer1.addr` has over 33 Ada.
+
+Now create a bid, that replaces the first bid:
+
+```bash
+$ scripts/happy-path/bid-2-tx.sh
+```
+
+Wait for the next slot, and query the script address
+
+```bash
+$ scripts/query/sc.sh
+```
+
+This should show the new bid's Ada.
+
+Query the `buyer` address:
+
+```bash
+$ scripts/query/buyer.sh
+```
+
+This should show the old bid Ada has been returned.
+
+At this wait for the auction to expire.
+
+Make sure that the `~/$BLOCKCHAIN_PREFIX/marketplace.addr` has over 3 Ada.
+
+When the time is right, call close:
+
+```bash
+$ scripts/happy-path/close-tx.sh
+```
+
+Wait for the next slot, and then check that the token is in `buyer1`'s wallet:
+
+```bash
+$ scripts/query/buyer-1.sh
+```
+
+and the bid is in the sellers wallet:
+
+```bash
+$ scripts/query/seller.sh
+```
+
+and the marketplace:
+
+```bash
+$ scripts/query/marketplace.sh
+```
+and
+
+```bash
+$ scripts/query/royalty.sh
+```
+
+# Full System Tests
+
+There are three large system tests that cover the main use cases and potential vulnerabilities we are aware of. The tests can be run on mainnet or testnet.
+
+They take a long time to run, around 20 minutes, and can fail if the testnet is overloaded.
+
+Luckily running them is easy:
+
+```bash
+$ ./scripts/tests/all.sh
+```
+
+The tests will start running. If the script errors one of the tests has failed.
+
+If the scripts pass one must still verify that assets were transfered correctly at each step.
+
+In the `temp/accounts/diff` directory, there will be subdirectories for each test flow. Within these directories are folders for each test step. If assets were transfer, there will be `json` files the account difference.
+
+For instance after the first step to lock assets at the script address, the following `json` files are written:
+
+```bash
+$ cat temp/accounts/diffs/start-bid1-bid2-close.sh/0-1/sc.json
+{"":{"":1758582},"d6cfdbedd242056674c0e51ead01785497e3a48afbbb146dc72ee1e2":{"123456":1}}
+$ cat temp/accounts/diffs/start-bid1-bid2-close.sh/0-1/seller.json
+{"":{"":-1942827},"d6cfdbedd242056674c0e51ead01785497e3a48afbbb146dc72ee1e2":{"123456":-1}}
+```
+
+This shows that the smart contract (`sc`), received a non-native token (`d6cfdbedd242056674c0e51ead01785497e3a48afbbb146dc72ee1e2.123456`) and 1758582 lovelaces.
+
+As expected, the seller lost _at least_ this much. Notice it lost more Ada, because of fees.

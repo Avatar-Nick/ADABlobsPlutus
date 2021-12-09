@@ -8,6 +8,8 @@ let
   plutus = import sources.plutus-apps {};
   pkgs = plutus.pkgs;
 
+  cardano-node = import sources.cardano-node {};
+
   haskell-nix = pkgs.haskell-nix;
 
   plutus-starter = import ./pkgs {
@@ -16,5 +18,5 @@ let
 
 in
 {
-  inherit pkgs plutus-starter;
+  inherit pkgs plutus-starter cardano-node;
 }

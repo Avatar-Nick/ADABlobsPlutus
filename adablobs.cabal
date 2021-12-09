@@ -42,8 +42,6 @@ library
     import: lang
     exposed-modules:
       Auction
-      Trade
-      TestTransaction
     build-depends:
       base >= 4.9 && < 5,
       aeson,
@@ -55,79 +53,21 @@ library
       plutus-contract,
       plutus-tx-plugin,
       plutus-tx,
-      plutus-ledger,   
-      plutus-ledger-api,      
+      plutus-ledger,
+      plutus-ledger-api,
       plutus-chain-index,
       text,
       data-default,
       serialise,
-    hs-source-dirs: src src/Auction src/Trade src/Test
+    hs-source-dirs: src
 
-executable plutus-auction
+executable create-auction-sc
   import:         lang
   hs-source-dirs: app
-  main-is:        plutus-auction.hs
+  main-is:        Main.hs
   ghc-options:    -threaded
   build-depends:
-    base >= 4.9 && < 5,
-    bytestring,
-    cardano-api -any,
-    cardano-ledger-alonzo -any,
-    data-default -any,
-    plutus-contract -any,
-    plutus-pab -any,
-    adablobs -any,
-    aeson -any,
-    freer-simple -any,
-    prettyprinter -any,
-    freer-extras -any,
-    plutus-ledger -any,
-    plutus-ledger-api -any,
-    openapi3 -any,
-    serialise -any,
-
-executable plutus-test
-  import:         lang
-  hs-source-dirs: app
-  main-is:        plutus-test.hs
-  ghc-options:    -threaded
-  build-depends:
-    base >= 4.9 && < 5,
-    bytestring,
-    cardano-api -any,
-    cardano-ledger-alonzo -any,
-    data-default -any,
-    plutus-contract -any,
-    plutus-pab -any,
-    adablobs -any,
-    aeson -any,
-    freer-simple -any,
-    prettyprinter -any,
-    freer-extras -any,
-    plutus-ledger -any,
-    plutus-ledger-api -any,
-    openapi3 -any,
-    serialise -any,
-
-executable plutus-test-basic
-  import:         lang
-  hs-source-dirs: app
-  main-is:        plutus-test-basic.hs
-  ghc-options:    -threaded
-  build-depends:
-    base >= 4.9 && < 5,
-    bytestring,
-    cardano-api -any,
-    cardano-ledger-alonzo -any,
-    data-default -any,
-    plutus-contract -any,
-    plutus-pab -any,
-    adablobs -any,
-    aeson -any,
-    freer-simple -any,
-    prettyprinter -any,
-    freer-extras -any,
-    plutus-ledger -any,
-    plutus-ledger-api -any,
-    openapi3 -any,
-    serialise -any,
+    , base >= 4.9 && < 5
+    , adablobs
+    , cardano-api
+    , optparse-applicative
