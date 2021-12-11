@@ -18,39 +18,22 @@ module Auction
   ) where
 
 import           Cardano.Api.Shelley  (PlutusScript (..), PlutusScriptV1)
--- import           Control.Monad        hiding (fmap)
 import           Codec.Serialise
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Short as SBS
-
--- import           Data.Default         (Default (..))
 import           Data.Aeson           (ToJSON, FromJSON)
--- import           Data.List.NonEmpty   (NonEmpty (..))
--- import           Data.Text            (pack, Text)
 import           GHC.Generics         (Generic)
--- import           Plutus.Contract
--- import           Plutus.Contract.Trace as Trace
--- import           Plutus.ChainIndex.Tx
 import qualified PlutusTx             as PlutusTx
 import           PlutusTx.Prelude
--- import           PlutusTx.Prelude     (divide)
--- import qualified PlutusTx.Prelude     as Plutus
 import           Plutus.V1.Ledger.Credential
 import qualified Plutus.V1.Ledger.Scripts as PlutusScripts
 import           Ledger               hiding (singleton)
--- import           Ledger.Constraints   as Constraints
 import qualified Ledger.Scripts       as Scripts
 import qualified Ledger.Typed.Scripts as Scripts hiding (validatorHash)
 import           Ledger.Value         as Value
 import           Ledger.Ada           as Ada hiding (divide)
--- import           Playground.Contract  (ensureKnownCurrencies, printSchemas, stage, printJson)
--- import           Playground.TH        (mkKnownCurrencies, mkSchemaDefinitions)
--- import           Playground.Types     (KnownCurrency (..))
 import           Prelude              (Show (..))
-import           Schema               (ToSchema)
--- import           Text.Printf          (printf)
--- import           Plutus.Trace.Emulator as Emulator
--- import           Wallet.Emulator.Wallet
+import qualified PlutusTx.AssocMap as A
 
 --------------------------------------------------------------------------------------------------
 -- On Chain Code
@@ -60,10 +43,11 @@ data AuctionDetails = AuctionDetails
     , adCurrency           :: !CurrencySymbol
     , adToken              :: !TokenName
     , adDeadline           :: !POSIXTime
-    -- , adBidPercentIncrease :: !Integer --5
-    -- , adStartTime          :: !POSIXTime -- 1596000000000 (For the playground only)
+    , adStartTime          :: !POSIXTime -- 1596000000000 (For the playground only)
+    , adMinBid             :: !Integer
+    , adPayoutPercentages  :: !(A.Map PubKeyHash Integer)
     -- , adBidTimeIncrement   :: !POSIXTime -- 172800000 (3 extra 0s because I think milliseconds are included for Plutus
-    } deriving (Show, Generic, ToJSON, FromJSON, ToSchema)
+    } deriving (Show, Generic, ToJSON, FromJSON)
 
 instance Eq AuctionDetails where
     {-# INLINABLE (==) #-}
@@ -72,8 +56,9 @@ instance Eq AuctionDetails where
       && (adCurrency           a == adCurrency                b)
       && (adToken              a == adToken                   b)
       && (adDeadline           a == adDeadline                b)
-      -- && (adBidPercentIncrease a == adBidPercentIncrease      b)
-      -- && (adStartTime          a == adStartTime               b)
+      && (adStartTime          a == adStartTime               b)
+      && (adPayoutPercentages  a == adPayoutPercentages       b)
+      && (adMinBid             a == adMinBid                  b)
       -- && (adBidTimeIncrement   a == adBidTimeIncrement        b)
 
 PlutusTx.unstableMakeIsData ''AuctionDetails -- Make Stable when live
@@ -96,7 +81,7 @@ PlutusTx.makeLift ''BidDetails
 
 data AuctionDatum = AuctionDatum
     { adAuctionDetails :: !AuctionDetails
-    , adHighestBid     :: !BidDetails
+    , adHighestBid     :: !(Maybe BidDetails)
     } deriving Show
 
 instance Eq AuctionDatum where
@@ -131,6 +116,93 @@ lovelaces = Ada.getLovelace . Ada.fromValue
 {-# INLINABLE lovelacesPaidTo #-}
 lovelacesPaidTo :: TxInfo -> PubKeyHash -> Integer
 lovelacesPaidTo info pkh = lovelaces (valuePaidTo info pkh)
+
+-------------------------------------------------------------------------------
+-- Sorting Utilities
+-------------------------------------------------------------------------------
+{-# INLINABLE drop #-}
+drop :: Integer -> [a] -> [a]
+drop n l@(_:xs) =
+    if n <= 0 then l
+    else drop (n-1) xs
+drop _ [] = []
+
+{-# INLINABLE merge #-}
+merge :: [(PubKeyHash, Integer)] -> [(PubKeyHash, Integer)] -> [(PubKeyHash, Integer)]
+merge as@(a:as') bs@(b:bs') =
+    if snd a <= snd b
+    then a:(merge as'  bs)
+    else b:(merge as bs')
+merge [] bs = bs
+merge as [] = as
+
+{-# INLINABLE mergeSort #-}
+mergeSort :: [(PubKeyHash, Integer)] -> [(PubKeyHash, Integer)]
+mergeSort xs =
+    let n = length xs
+    in if n > 1
+       then let n2 = n `divide` 2
+            in merge (mergeSort (take n2 xs)) (mergeSort (drop n2 xs))
+       else xs
+
+-------------------------------------------------------------------------------
+-- Payout Utilities
+-------------------------------------------------------------------------------
+type Percent = Integer
+type Lovelaces = Integer
+
+{-# INLINABLE minAda #-}
+minAda :: Lovelaces
+minAda = 1_000_000
+
+{-# INLINABLE sortPercents #-}
+sortPercents :: A.Map PubKeyHash Percent -> [(PubKeyHash, Percent)]
+sortPercents = mergeSort . A.toList
+
+-- This computes the payout by attempting to the honor the percentage while
+-- keeping the payout above 1 Ada. Because 1 Ada could be higher than the
+-- percentage, if a minimum occurs, it has to adjust the rest of the payouts
+-- It does this by subtracting the amount payed from the total payout,
+-- and subtracting the total percentage available after each payout.
+-- More details are explained in the README. It is also the main
+-- function tested in the unit tests.
+--
+-- !!!!!! IMPORTANT
+-- This function assumes the input is sorted by percent from least to
+-- greatest.
+--
+{-# INLINABLE payoutPerAddress #-}
+payoutPerAddress :: Integer -> [(PubKeyHash, Percent)] -> [(PubKeyHash, Lovelaces)]
+payoutPerAddress total percents = go total 1000 percents where
+  go left totalPercent = \case
+    [] -> traceError "No seller percentage specified"
+    [(pkh, _)] -> [(pkh, left)]
+    (pkh, percent) : rest ->
+      let !percentOfPot = applyPercent totalPercent left percent
+          !percentOf = max minAda percentOfPot
+      in (pkh, percentOf) : go (left - percentOf) (totalPercent - percent) rest
+
+{-# INLINABLE applyPercent #-}
+applyPercent :: Integer -> Lovelaces -> Percent -> Lovelaces
+applyPercent divider inVal pct = (inVal * pct) `divide` divider
+
+-- Sort the payout map from least to greatest.
+-- Compute the payouts for each address.
+-- Check that each address has received their payout.
+{-# INLINABLE payoutIsValid #-}
+payoutIsValid :: Lovelaces -> TxInfo -> A.Map PubKeyHash Percent -> Bool
+payoutIsValid total info
+  = all (paidapplyPercent info)
+  . payoutPerAddress total
+  . sortPercents
+
+-- For a given address and percentage pair, verify
+-- they received greater or equal to their percentage
+-- of the input.
+{-# INLINABLE paidapplyPercent #-}
+paidapplyPercent :: TxInfo -> (PubKeyHash, Lovelaces) -> Bool
+paidapplyPercent info (addr, owed)
+  = lovelacesPaidTo info addr >= owed
 
 -------------------------------------------------------------------------------
 {-
@@ -189,7 +261,7 @@ mkAuctionValidator datum redeemer ctx =
             -- min bid, e.g. the reserve price or last bid.
             sufficientBid :: Integer -> Bool
             sufficientBid amount = amount >= minBid where
-              minBid = bdBid (adHighestBid datum) + 1
+              minBid = maybe (adMinBid $ adAuctionDetails datum) bdBid (adHighestBid datum) + 1
 
             ownOutput   :: TxOut
             outputDatum :: AuctionDatum
@@ -209,10 +281,10 @@ mkAuctionValidator datum redeemer ctx =
             -- update the latest bid.
             correctBidOutputDatum :: BidDetails -> Bool
             correctBidOutputDatum b
-              = outputDatum == datum { adHighestBid = b }
+              = outputDatum == datum { adHighestBid = Just b }
 
             oldBidAmount :: Integer
-            !oldBidAmount = bdBid . adHighestBid $ datum
+            !oldBidAmount = maybe 0 bdBid . adHighestBid $ datum
 
             bidDiff :: Integer
             bidDiff = bdBid bd - oldBidAmount
@@ -223,21 +295,39 @@ mkAuctionValidator datum redeemer ctx =
               txOutValue ownOutput `Value.geq` (actualScriptValue <> Ada.lovelaceValueOf bidDiff)
 
             correctBidRefund :: Bool
-            !correctBidRefund =
-              lovelacesPaidTo info (bdBidder $ adHighestBid datum) >= (bdBid $ adHighestBid datum)
+            !correctBidRefund = case adHighestBid datum of
+              Nothing -> True
+              Just b -> lovelacesPaidTo info (bdBidder b) >= (bdBid b)
 
             -- Bidding is allowed if the start time is before the tx interval
             -- deadline is later than the valid tx
             -- range. The deadline is in the future.
             correctBidSlotRange :: Bool
             !correctBidSlotRange
-              = (adDeadline $ adAuctionDetails datum) `after` txInfoValidRange info
+              =  (adDeadline $ adAuctionDetails datum) `after` txInfoValidRange info
+              && (adStartTime $ adAuctionDetails datum) `before` txInfoValidRange info
 
-        Close -> False
-            --traceIfFalse "Seller must close the auction"                                    isSeller && -- This is required until the time interval bug in plutus 1.30.1 is fixed
-            ----traceIfFalse "The auction has not ended yet"                                    (correctSlotRangeCloseEndAuction) &&
-            --traceIfFalse "Expected the highest bidder to get the token" (getsValue (bdBidder (adHighestBid datum)) tokenValue) &&
-            --traceIfFalse "Expected the sell to get the highest bid" (getsValue (adSeller (adAuctionDetails datum)) (Ada.lovelaceValueOf (bdBid (adHighestBid datum))))
+        Close ->
+          let
+            -- Closing is allowed if the deadline is before than the valid tx
+            -- range. The deadline is past.
+            correctCloseSlotRange :: Bool
+            !correctCloseSlotRange = (adDeadline $ adAuctionDetails datum) `before` txInfoValidRange info
+
+            in traceIfFalse "too early" correctCloseSlotRange
+            && case adHighestBid datum of
+                Nothing
+                  -> traceIfFalse
+                      "expected seller to get token"
+                      (getsValue (adSeller $ adAuctionDetails datum) tokenValue)
+                Just BidDetails{..}
+                  -> traceIfFalse
+                      "expected highest bidder to get token"
+                      (getsValue bdBidder tokenValue)
+                  && traceIfFalse
+                      "expected all sellers to get highest bid"
+                      (payoutIsValid bdBid info $ adPayoutPercentages $ adAuctionDetails datum)
+
     where
     --    --------------------------------------------------------------------------------------------------
     --    -- Helper Functions
@@ -252,7 +342,7 @@ mkAuctionValidator datum redeemer ctx =
         -- The value we expect on the script input based on
         -- datum.
         expectedScriptValue :: Value
-        !expectedScriptValue = tokenValue <> Ada.lovelaceValueOf (bdBid $ adHighestBid datum)
+        !expectedScriptValue = tokenValue <> Ada.lovelaceValueOf (maybe 0 bdBid $ adHighestBid datum)
 
         actualScriptValue :: Value
         !actualScriptValue = getOnlyScriptInput info
@@ -261,76 +351,10 @@ mkAuctionValidator datum redeemer ctx =
         correctInputValue :: Bool
         !correctInputValue = actualScriptValue `Value.geq` expectedScriptValue
 
+        -- Helper to make sure the pkh is paid at least the value.
+        getsValue :: PubKeyHash -> Value -> Bool
+        getsValue h v = valuePaidTo info h `Value.geq` v
 
-    --    tokenValue :: Value
-    --    tokenValue = Value.singleton (adCurrency (adAuctionDetails datum)) (adToken (adAuctionDetails datum)) 1
-
-    --    ownOutput   :: TxOut
-    --    outputDatum :: AuctionDatum
-    --    (ownOutput, outputDatum) = case getContinuingOutputs context of
-    --        [output] -> case txOutDatumHash output of
-    --            Nothing        -> traceError "Wrong output type"
-    --            Just datumHash -> case findDatum datumHash txInfo of
-    --                Nothing        -> traceError "Datum not found"
-    --                Just (Datum d) ->  case PlutusTx.fromBuiltinData d of
-    --                    Just auctionDatum -> (output, auctionDatum)
-    --                    Nothing           -> traceError "Error decoding data"
-    --        _   -> traceError "Expected exactly one continuing output"
-
-    --    isSeller :: Bool
-    --    -- isSeller = (cdCloser closeDetails) == (adSeller (adAuctionDetails datum))
-
-    --    --------------------------------------------------------------------------------------------------
-    --    -- Time Functions
-    --    --------------------------------------------------------------------------------------------------
-
-    --    -- There is a bug in the "to" time intervals in Plutus 1.30.1 where the "to" does not work. using static time for now
-    --    --correctSlotRangeBidStartAuction :: Bool
-    --    --correctSlotRangeBidStartAuction = from (adStartTime (adAuctionDetails datum)) `contains` txInfoValidRange txInfo
-
-    --    --correctSlotRangeBidEndAuction :: Bool
-    --    --correctSlotRangeBidEndAuction = to (deadline datum) `contains` txInfoValidRange txInfo
-
-    --    correctSlotRangeCloseEndAuction :: Bool
-    --    correctSlotRangeCloseEndAuction = from (deadline datum) `contains` txInfoValidRange txInfo
-
-    --    --------------------------------------------------------------------------------------------------
-    --    -- Data Functions
-    --    --------------------------------------------------------------------------------------------------
-    --    correctBidOutputDatum :: BidDetails -> Bool
-    --    correctBidOutputDatum bid = (adAuctionDetails datum == adAuctionDetails outputDatum)   &&
-    --                                (adHighestBid outputDatum == bid)
-
-    --    correctBidOutputValue :: Integer -> Bool
-    --    correctBidOutputValue amount = txOutValue ownOutput == tokenValue Plutus.<> Ada.lovelaceValueOf amount
-
-    --    --------------------------------------------------------------------------------------------------
-    --    -- Value Functions
-    --    --------------------------------------------------------------------------------------------------
-    --    sufficientBid :: Integer -> Bool
-    --    sufficientBid amount = amount > minBid datum
-
-    --    correctBidRefund :: Bool
-    --    correctBidRefund =
-    --            let
-    --                outputs = [output
-    --                          | output <- (txInfoOutputs txInfo)
-    --                          , (txOutAddress output) == (pubKeyHashAddress (bdBidder (adHighestBid datum)))
-    --                          ]
-    --            in
-    --                case outputs of
-    --                    [output] -> txOutValue output == Ada.lovelaceValueOf (bdBid (adHighestBid datum))
-    --                    _        -> traceError "Expected exactly one refund output"
-
-    --    getsValue :: PubKeyHash -> Value -> Bool
-    --    getsValue publicKeyHash value =
-    --        let
-    --            [output] = [ ouput'
-    --                       | ouput' <- txInfoOutputs txInfo
-    --                       , txOutValue ouput' == value
-    --                       ]
-    --        in
-    --            txOutAddress output == pubKeyHashAddress publicKeyHash
 
 auctionTypedValidator :: Scripts.TypedValidator Auctioning
 auctionTypedValidator = Scripts.mkTypedValidator @Auctioning
@@ -353,5 +377,3 @@ auctionScriptShortBs = SBS.toShort . LBS.toStrict $ serialise script
 
 auctionScript :: PlutusScript PlutusScriptV1
 auctionScript = PlutusScriptSerialised auctionScriptShortBs
-
-

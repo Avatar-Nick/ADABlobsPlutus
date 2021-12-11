@@ -28,6 +28,19 @@ flag defer-plugin-errors
     manual: True
 
 common lang
+    default-extensions:
+      DataKinds
+      MultiParamTypeClasses
+      OverloadedStrings
+      ScopedTypeVariables
+      RecordWildCards
+      TemplateHaskell
+      TypeApplications
+      TypeFamilies
+      NamedFieldPuns
+      NumericUnderscores
+      LambdaCase
+      BangPatterns
     default-language:   Haskell2010
     ghc-options:
       -Wall -Wnoncanonical-monad-instances
@@ -49,13 +62,10 @@ library
       cardano-api,
       containers,
       freer-extras,
-      playground-common,
-      plutus-contract,
       plutus-tx-plugin,
       plutus-tx,
       plutus-ledger,
       plutus-ledger-api,
-      plutus-chain-index,
       text,
       data-default,
       serialise,

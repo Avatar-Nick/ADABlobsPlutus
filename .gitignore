@@ -24,3 +24,5 @@ cabal.project.local~
 result*
 .envrc
 .vim
+.DS_Store
+temp/
