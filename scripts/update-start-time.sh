@@ -40,32 +40,10 @@ cat << EOF > $thisDir/$BLOCKCHAIN_PREFIX/datums/$prefix/start.json
           "int": 8000000
         },
         {
-          "map": [
-            {
-              "v": {
-                "int": 900
-              },
-              "k": {
-                "bytes": "$sellerPkh"
-              }
-            },
-            {
-              "v": {
-                "int": 50
-              },
-              "k": {
-                "bytes": "$royaltyPkh"
-              }
-            },
-            {
-              "v": {
-                "int": 50
-              },
-              "k": {
-                "bytes": "$marketplacePkh"
-              }
-            }
-          ]
+          "int" : 100
+        },
+        {
+          "bytes": "$marketplacePkh"
         }
       ]
     },
@@ -105,32 +83,10 @@ cat << EOF > $thisDir/$BLOCKCHAIN_PREFIX/datums/$prefix/bid-1.json
           "int": 8000000
         },
         {
-          "map": [
-            {
-              "v": {
-                "int": 900
-              },
-              "k": {
-                "bytes": "$sellerPkh"
-              }
-            },
-            {
-              "v": {
-                "int": 50
-              },
-              "k": {
-                "bytes": "$royaltyPkh"
-              }
-            },
-            {
-              "v": {
-                "int": 50
-              },
-              "k": {
-                "bytes": "$marketplacePkh"
-              }
-            }
-          ]
+          "int" : 100
+        },
+        {
+          "bytes": "$marketplacePkh"
         }
       ]
     },
@@ -182,32 +138,10 @@ cat << EOF > $thisDir/$BLOCKCHAIN_PREFIX/datums/$prefix/seller-bid-1.json
           "int": 8000000
         },
         {
-          "map": [
-            {
-              "v": {
-                "int": 900
-              },
-              "k": {
-                "bytes": "$sellerPkh"
-              }
-            },
-            {
-              "v": {
-                "int": 50
-              },
-              "k": {
-                "bytes": "$royaltyPkh"
-              }
-            },
-            {
-              "v": {
-                "int": 50
-              },
-              "k": {
-                "bytes": "$marketplacePkh"
-              }
-            }
-          ]
+          "int" : 100
+        },
+        {
+          "bytes": "$marketplacePkh"
         }
       ]
     },
@@ -258,32 +192,10 @@ cat << EOF > $thisDir/$BLOCKCHAIN_PREFIX/datums/$prefix/bid-2.json
           "int": 8000000
         },
         {
-          "map": [
-            {
-              "v": {
-                "int": 900
-              },
-              "k": {
-                "bytes": "$sellerPkh"
-              }
-            },
-            {
-              "v": {
-                "int": 50
-              },
-              "k": {
-                "bytes": "$royaltyPkh"
-              }
-            },
-            {
-              "v": {
-                "int": 50
-              },
-              "k": {
-                "bytes": "$marketplacePkh"
-              }
-            }
-          ]
+          "int" : 100
+        },
+        {
+          "bytes": "$marketplacePkh"
         }
       ]
     },

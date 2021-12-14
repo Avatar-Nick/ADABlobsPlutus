@@ -43,7 +43,7 @@ common lang
       BangPatterns
     default-language:   Haskell2010
     ghc-options:
-      -Wall -Wnoncanonical-monad-instances
+      -Werror -Wall -Wnoncanonical-monad-instances
       -Wincomplete-uni-patterns -Wincomplete-record-updates
       -Wredundant-constraints -Widentities -rtsopts
       -- See Plutus Tx readme

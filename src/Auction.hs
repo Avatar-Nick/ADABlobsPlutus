@@ -33,7 +33,6 @@ import qualified Ledger.Typed.Scripts as Scripts hiding (validatorHash)
 import           Ledger.Value         as Value
 import           Ledger.Ada           as Ada hiding (divide)
 import           Prelude              (Show (..))
-import qualified PlutusTx.AssocMap as A
 
 --------------------------------------------------------------------------------------------------
 -- On Chain Code
@@ -45,8 +44,8 @@ data AuctionDetails = AuctionDetails
     , adDeadline           :: !POSIXTime
     , adStartTime          :: !POSIXTime -- 1596000000000 (For the playground only)
     , adMinBid             :: !Integer
-    , adPayoutPercentages  :: !(A.Map PubKeyHash Integer)
-    -- , adBidTimeIncrement   :: !POSIXTime -- 172800000 (3 extra 0s because I think milliseconds are included for Plutus
+    , adMarketplacePercent :: !Integer
+    , adMarketplaceAddress :: !PubKeyHash
     } deriving (Show, Generic, ToJSON, FromJSON)
 
 instance Eq AuctionDetails where
@@ -57,9 +56,9 @@ instance Eq AuctionDetails where
       && (adToken              a == adToken                   b)
       && (adDeadline           a == adDeadline                b)
       && (adStartTime          a == adStartTime               b)
-      && (adPayoutPercentages  a == adPayoutPercentages       b)
+      && (adMarketplacePercent a == adMarketplacePercent      b)
+      && (adMarketplaceAddress a == adMarketplaceAddress      b)
       && (adMinBid             a == adMinBid                  b)
-      -- && (adBidTimeIncrement   a == adBidTimeIncrement        b)
 
 PlutusTx.unstableMakeIsData ''AuctionDetails -- Make Stable when live
 PlutusTx.makeLift ''AuctionDetails
@@ -67,7 +66,6 @@ PlutusTx.makeLift ''AuctionDetails
 data BidDetails = BidDetails
     { bdBidder :: !PubKeyHash
     , bdBid    :: !Integer
-    -- , bdTime   :: !POSIXTime
     } deriving Show
 
 instance Eq BidDetails where
@@ -117,33 +115,6 @@ lovelaces = Ada.getLovelace . Ada.fromValue
 lovelacesPaidTo :: TxInfo -> PubKeyHash -> Integer
 lovelacesPaidTo info pkh = lovelaces (valuePaidTo info pkh)
 
--------------------------------------------------------------------------------
--- Sorting Utilities
--------------------------------------------------------------------------------
-{-# INLINABLE drop #-}
-drop :: Integer -> [a] -> [a]
-drop n l@(_:xs) =
-    if n <= 0 then l
-    else drop (n-1) xs
-drop _ [] = []
-
-{-# INLINABLE merge #-}
-merge :: [(PubKeyHash, Integer)] -> [(PubKeyHash, Integer)] -> [(PubKeyHash, Integer)]
-merge as@(a:as') bs@(b:bs') =
-    if snd a <= snd b
-    then a:(merge as'  bs)
-    else b:(merge as bs')
-merge [] bs = bs
-merge as [] = as
-
-{-# INLINABLE mergeSort #-}
-mergeSort :: [(PubKeyHash, Integer)] -> [(PubKeyHash, Integer)]
-mergeSort xs =
-    let n = length xs
-    in if n > 1
-       then let n2 = n `divide` 2
-            in merge (mergeSort (take n2 xs)) (mergeSort (drop n2 xs))
-       else xs
 
 -------------------------------------------------------------------------------
 -- Payout Utilities
@@ -155,54 +126,25 @@ type Lovelaces = Integer
 minAda :: Lovelaces
 minAda = 1_000_000
 
-{-# INLINABLE sortPercents #-}
-sortPercents :: A.Map PubKeyHash Percent -> [(PubKeyHash, Percent)]
-sortPercents = mergeSort . A.toList
-
--- This computes the payout by attempting to the honor the percentage while
--- keeping the payout above 1 Ada. Because 1 Ada could be higher than the
--- percentage, if a minimum occurs, it has to adjust the rest of the payouts
--- It does this by subtracting the amount payed from the total payout,
--- and subtracting the total percentage available after each payout.
--- More details are explained in the README. It is also the main
--- function tested in the unit tests.
---
--- !!!!!! IMPORTANT
--- This function assumes the input is sorted by percent from least to
--- greatest.
---
-{-# INLINABLE payoutPerAddress #-}
-payoutPerAddress :: Integer -> [(PubKeyHash, Percent)] -> [(PubKeyHash, Lovelaces)]
-payoutPerAddress total percents = go total 1000 percents where
-  go left totalPercent = \case
-    [] -> traceError "No seller percentage specified"
-    [(pkh, _)] -> [(pkh, left)]
-    (pkh, percent) : rest ->
-      let !percentOfPot = applyPercent totalPercent left percent
-          !percentOf = max minAda percentOfPot
-      in (pkh, percentOf) : go (left - percentOf) (totalPercent - percent) rest
-
 {-# INLINABLE applyPercent #-}
 applyPercent :: Integer -> Lovelaces -> Percent -> Lovelaces
 applyPercent divider inVal pct = (inVal * pct) `divide` divider
 
--- Sort the payout map from least to greatest.
--- Compute the payouts for each address.
--- Check that each address has received their payout.
 {-# INLINABLE payoutIsValid #-}
-payoutIsValid :: Lovelaces -> TxInfo -> A.Map PubKeyHash Percent -> Bool
-payoutIsValid total info
-  = all (paidapplyPercent info)
-  . payoutPerAddress total
-  . sortPercents
+payoutIsValid :: Lovelaces -> TxInfo -> PubKeyHash -> PubKeyHash -> Percent -> Bool
+payoutIsValid total info seller marketplace percent =
+  let
+    marketPlaceAmount = if percent == 0
+      then 0
+      else max minAda ((total * percent) `divide` 1000)
 
--- For a given address and percentage pair, verify
--- they received greater or equal to their percentage
--- of the input.
-{-# INLINABLE paidapplyPercent #-}
-paidapplyPercent :: TxInfo -> (PubKeyHash, Lovelaces) -> Bool
-paidapplyPercent info (addr, owed)
-  = lovelacesPaidTo info addr >= owed
+    sellerAmount = total - marketPlaceAmount
+
+  in traceIfFalse "Marketplace not paid!"
+      (lovelacesPaidTo info marketplace >= marketPlaceAmount)
+  && traceIfFalse "Marketplace not paid!"
+      (lovelacesPaidTo info seller >= sellerAmount)
+
 
 -------------------------------------------------------------------------------
 {-
@@ -324,9 +266,10 @@ mkAuctionValidator datum redeemer ctx =
                   -> traceIfFalse
                       "expected highest bidder to get token"
                       (getsValue bdBidder tokenValue)
-                  && traceIfFalse
-                      "expected all sellers to get highest bid"
-                      (payoutIsValid bdBid info $ adPayoutPercentages $ adAuctionDetails datum)
+                  && payoutIsValid bdBid info
+                        (adSeller $ adAuctionDetails datum)
+                        (adMarketplaceAddress $ adAuctionDetails datum)
+                        (adMarketplacePercent $ adAuctionDetails datum)
 
     where
     --    --------------------------------------------------------------------------------------------------
