@@ -90,7 +90,7 @@ cat << EOF > $tempDir/$BLOCKCHAIN_PREFIX/datums/$prefix/bid-1.json
           "int" : 100
         },
         {
-          "bytes": "b90c88a3460d723708b5c8a2d8c33951b13f920de8e8ff605480bf2f"
+          "bytes": "$marketplacePkh"
         }
       ]
     },
@@ -144,7 +144,7 @@ cat << EOF > $tempDir/$BLOCKCHAIN_PREFIX/datums/$prefix/seller-bid-1.json
           "int" : 100
         },
         {
-          "bytes": "b90c88a3460d723708b5c8a2d8c33951b13f920de8e8ff605480bf2f"
+          "bytes": "$marketplacePkh"
         }
       ]
     },
@@ -198,7 +198,7 @@ cat << EOF > $tempDir/$BLOCKCHAIN_PREFIX/datums/$prefix/bid-2.json
           "int" : 100
         },
         {
-          "bytes": "b90c88a3460d723708b5c8a2d8c33951b13f920de8e8ff605480bf2f"
+          "bytes": "$marketplacePkh"
         }
       ]
     },
