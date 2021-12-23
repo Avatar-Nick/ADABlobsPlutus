@@ -14,9 +14,7 @@ datumHash1=$(cat $tempDir/$BLOCKCHAIN_PREFIX/datums/1/bid-2-hash.txt)
 winningBuyer=$(cat ~/$BLOCKCHAIN_PREFIX/buyer1.addr)
 sellerAmount=27000000
 sellerAddr=$(cat ~/$BLOCKCHAIN_PREFIX/seller.addr)
-royaltyAmount=1500000
-royaltyAddr=$(cat ~/$BLOCKCHAIN_PREFIX/royalities.addr)
-marketplaceAmount=1500000
+marketplaceAmount=3000000
 marketplaceAddr=$(cat ~/$BLOCKCHAIN_PREFIX/marketplace.addr)
 
 
@@ -50,7 +48,6 @@ cardano-cli transaction build \
     --tx-in-collateral $(cardano-cli-balance-fixer collateral --address $sellerAddr $BLOCKCHAIN) \
     --tx-out "$winningBuyer + $output1" \
     --tx-out "$sellerAddr + $sellerAmount lovelace + $(cardano-cli-balance-fixer change --address $sellerAddr $BLOCKCHAIN)" \
-    --tx-out "$royaltyAddr + $royaltyAmount lovelace "  \
     --tx-out "$marketplaceAddr + $marketplaceAmount lovelace "  \
     --tx-out "$attackerAddr + $sellerAmount lovelace" \
     --tx-out "$attackerAddr + $royaltyAmount lovelace" \
