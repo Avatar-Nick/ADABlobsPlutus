@@ -17,7 +17,7 @@ do
 done
 
 # Do the same thing twice on mainnet
-if [ $BLOCKCHAIN_PREFIX == "mainnet" ]; then
+if [ $BLOCKCHAIN_PREFIX == "mainnet" || true ]; then
 initialBlock=$(cardano-cli query tip $BLOCKCHAIN 2>/dev/null | jq .slot )
 seconds=0
 echo "initial block $initialBlock"

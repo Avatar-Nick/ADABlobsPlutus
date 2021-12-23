@@ -1,16 +1,22 @@
 set -eux
 
 bodyFile=temp/consolidate-tx-body.01
-signingKey=~/$BLOCKCHAIN_PREFIX/buyer1.skey
+signingKey=~/$BLOCKCHAIN_PREFIX/benefactor.skey
 outFile=temp/consolidate-tx.01
-senderAddr=$(cat ~/$BLOCKCHAIN_PREFIX/buyer1.addr)
-receiverAddr=$(cat ~/$BLOCKCHAIN_PREFIX/buyer.addr)
+senderAddr=$(cat ~/$BLOCKCHAIN_PREFIX/benefactor.addr)
+sellerAddr=$(cat ~/$BLOCKCHAIN_PREFIX/seller.addr)
+buyerAddr=$(cat ~/$BLOCKCHAIN_PREFIX/buyer.addr)
+buyer1Addr=$(cat ~/$BLOCKCHAIN_PREFIX/buyer1.addr)
+marketplaceAddr=$(cat ~/$BLOCKCHAIN_PREFIX/marketplace.addr)
 
 cardano-cli transaction build \
   --alonzo-era \
   $BLOCKCHAIN \
-  --tx-in 009cde525ed606dd6689498c5fbdce7328cdeefcbcb5a56a4cb81703a8dec8e1#1 \
-  --tx-out "$receiverAddr +10000000 lovelace" \
+  --tx-in 5a62dea011e0fe7a9c8285c7bb79cdb01bb29c06a3136c83ca537066a8891646#0 \
+  --tx-out "$sellerAddr +50000000 lovelace" \
+  --tx-out "$buyerAddr +50000000 lovelace" \
+  --tx-out "$buyer1Addr +50000000 lovelace" \
+  --tx-out "$marketplaceAddr +50000000 lovelace" \
   --change-address $senderAddr \
   --protocol-params-file scripts/$BLOCKCHAIN_PREFIX/protocol-parameters.json \
   --out-file $bodyFile

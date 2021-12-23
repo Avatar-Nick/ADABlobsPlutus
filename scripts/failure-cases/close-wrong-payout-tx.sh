@@ -1,6 +1,7 @@
 set -eux
 thisDir=$(dirname "$0")
 baseDir=$thisDir/../
+tempDir=$baseDir/../temp
 
 DATUM_PREFIX=${DATUM_PREFIX:-0}
 

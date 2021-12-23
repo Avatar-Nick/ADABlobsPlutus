@@ -20,7 +20,7 @@
     "maxValueSize": 5000,
     "maxBlockHeaderSize": 1100,
     "maxTxExecutionUnits": {
-        "memory": 12500000,
+        "memory": 11250000,
         "steps": 10000000000
     },
     "costModels": {

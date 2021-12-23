@@ -1,20 +1,23 @@
 set -eux
 thisDir=$(dirname "$0")
+tempDir=$thisDir/../temp
 
 nowSeconds=$(date +%s)
 now=$(($nowSeconds*1000))
 timestamp=$(($nowSeconds*1000+$1))
 prefix=${2:-0}
 
-mkdir -p $thisDir/$BLOCKCHAIN_PREFIX/datums/$prefix
+mkdir -p $tempDir/$BLOCKCHAIN_PREFIX/datums/$prefix
+mkdir -p $tempDir/$BLOCKCHAIN_PREFIX/redeemers
 
-sellerPkh=$(cat $thisDir/$BLOCKCHAIN_PREFIX/pkhs/seller-pkh.txt)
-marketplacePkh=$(cat $thisDir/$BLOCKCHAIN_PREFIX/pkhs/marketplace-pkh.txt)
-royaltyPkh=$(cat $thisDir/$BLOCKCHAIN_PREFIX/pkhs/royalities-pkh.txt)
-buyerPkh=$(cat $thisDir/$BLOCKCHAIN_PREFIX/pkhs/buyer-pkh.txt)
-buyer1Pkh=$(cat $thisDir/$BLOCKCHAIN_PREFIX/pkhs/buyer1-pkh.txt)
+sellerPkh=$(cat $tempDir/$BLOCKCHAIN_PREFIX/pkhs/seller-pkh.txt)
+marketplacePkh=$(cat $tempDir/$BLOCKCHAIN_PREFIX/pkhs/marketplace-pkh.txt)
+royaltyPkh=$(cat $tempDir/$BLOCKCHAIN_PREFIX/pkhs/royalities-pkh.txt)
+buyerPkh=$(cat $tempDir/$BLOCKCHAIN_PREFIX/pkhs/buyer-pkh.txt)
+buyer1Pkh=$(cat $tempDir/$BLOCKCHAIN_PREFIX/pkhs/buyer1-pkh.txt)
 
-cat << EOF > $thisDir/$BLOCKCHAIN_PREFIX/datums/$prefix/start.json
+cat << EOF > $tempDir/$BLOCKCHAIN_PREFIX/datums/$prefix/start.json
+
 {
   "constructor": 0,
   "fields": [
@@ -57,7 +60,8 @@ cat << EOF > $thisDir/$BLOCKCHAIN_PREFIX/datums/$prefix/start.json
 
 EOF
 
-cat << EOF > $thisDir/$BLOCKCHAIN_PREFIX/datums/$prefix/bid-1.json
+cat << EOF > $tempDir/$BLOCKCHAIN_PREFIX/datums/$prefix/bid-1.json
+
 {
   "constructor": 0,
   "fields": [
@@ -86,7 +90,7 @@ cat << EOF > $thisDir/$BLOCKCHAIN_PREFIX/datums/$prefix/bid-1.json
           "int" : 100
         },
         {
-          "bytes": "$marketplacePkh"
+          "bytes": "b90c88a3460d723708b5c8a2d8c33951b13f920de8e8ff605480bf2f"
         }
       ]
     },
@@ -109,10 +113,9 @@ cat << EOF > $thisDir/$BLOCKCHAIN_PREFIX/datums/$prefix/bid-1.json
   ]
 }
 
-
 EOF
 
-cat << EOF > $thisDir/$BLOCKCHAIN_PREFIX/datums/$prefix/seller-bid-1.json
+cat << EOF > $tempDir/$BLOCKCHAIN_PREFIX/datums/$prefix/seller-bid-1.json
 {
   "constructor": 0,
   "fields": [
@@ -141,7 +144,7 @@ cat << EOF > $thisDir/$BLOCKCHAIN_PREFIX/datums/$prefix/seller-bid-1.json
           "int" : 100
         },
         {
-          "bytes": "$marketplacePkh"
+          "bytes": "b90c88a3460d723708b5c8a2d8c33951b13f920de8e8ff605480bf2f"
         }
       ]
     },
@@ -166,7 +169,7 @@ cat << EOF > $thisDir/$BLOCKCHAIN_PREFIX/datums/$prefix/seller-bid-1.json
 
 EOF
 
-cat << EOF > $thisDir/$BLOCKCHAIN_PREFIX/datums/$prefix/bid-2.json
+cat << EOF > $tempDir/$BLOCKCHAIN_PREFIX/datums/$prefix/bid-2.json
 {
   "constructor": 0,
   "fields": [
@@ -195,7 +198,7 @@ cat << EOF > $thisDir/$BLOCKCHAIN_PREFIX/datums/$prefix/bid-2.json
           "int" : 100
         },
         {
-          "bytes": "$marketplacePkh"
+          "bytes": "b90c88a3460d723708b5c8a2d8c33951b13f920de8e8ff605480bf2f"
         }
       ]
     },
@@ -219,5 +222,77 @@ cat << EOF > $thisDir/$BLOCKCHAIN_PREFIX/datums/$prefix/bid-2.json
 }
 
 EOF
+
+cat << EOF > $tempDir/$BLOCKCHAIN_PREFIX/redeemers/bid-1.json
+
+{
+  "constructor": 0,
+  "fields": [
+    {
+      "constructor": 0,
+      "fields": [
+        {
+          "bytes": "$buyerPkh"
+        },
+        {
+          "int": 10000000
+        }
+      ]
+    }
+  ]
+}
+
+
+EOF
+
+cat << EOF > $tempDir/$BLOCKCHAIN_PREFIX/redeemers/bid-2.json
+
+{
+  "constructor": 0,
+  "fields": [
+    {
+      "constructor": 0,
+      "fields": [
+        {
+          "bytes": "$buyer1Pkh"
+        },
+        {
+          "int": 30000000
+        }
+      ]
+    }
+  ]
+}
+
+EOF
+
+cat << EOF > $tempDir/$BLOCKCHAIN_PREFIX/redeemers/close.json
+
+{ "constructor":1, "fields": []}
+
+EOF
+
+cat << EOF > $tempDir/$BLOCKCHAIN_PREFIX/redeemers/seller-bid-1.json
+
+{
+  "constructor": 0,
+  "fields": [
+    {
+      "constructor": 0,
+      "fields": [
+        {
+          "bytes": "$sellerPkh"
+        },
+        {
+          "int": 10000000
+        }
+      ]
+    }
+  ]
+}
+
+
+EOF
+
 
 $thisDir/hash-datums.sh

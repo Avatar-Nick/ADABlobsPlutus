@@ -7,9 +7,9 @@ bn=$(basename $0)
 $baseDir/wait/until-next-block.sh
 
 # echo Mint
-# $baseDir/minting/mint-0-policy.sh
-# sleep 2
-# $baseDir/wait/until-next-block.sh
+$baseDir/minting/mint-0-policy.sh
+sleep 2
+$baseDir/wait/until-next-block.sh
 
 $baseDir/accounts/log-all-accounts.sh $bn 0
 

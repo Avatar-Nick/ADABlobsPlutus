@@ -1,6 +1,7 @@
 set -eux
 thisDir=$(dirname "$0")
 baseDir=$thisDir/../
+tempDir=$baseDir/../temp
 
 $baseDir/hash-datums.sh
 $baseDir/hash-plutus.sh
@@ -8,15 +9,15 @@ $baseDir/hash-plutus.sh
 buyerAddr=$(cat ~/$BLOCKCHAIN_PREFIX/attacker.addr)
 signingKey=~/$BLOCKCHAIN_PREFIX/attacker.skey
 value=d6cfdbedd242056674c0e51ead01785497e3a48afbbb146dc72ee1e2.123456
-oldDatumFile0=$baseDir/$BLOCKCHAIN_PREFIX/datums/bid-1.json
-oldDatumHash0=$(cat $baseDir/$BLOCKCHAIN_PREFIX/datums/0/bid-1-hash.txt)
-newDatumHash0=$(cat $baseDir/$BLOCKCHAIN_PREFIX/datums/0/bid-2-hash.txt)
-oldDatumFil1=$baseDir/$BLOCKCHAIN_PREFIX/datums/1/bid-1.json
-oldDatumHash1=$(cat $baseDir/$BLOCKCHAIN_PREFIX/datums/1/bid-1-hash.txt)
-newDatumHash1=$(cat $baseDir/$BLOCKCHAIN_PREFIX/datums/1/bid-2-hash.txt)
-newDatumFile=$baseDir/$BLOCKCHAIN_PREFIX/datums/0/bid-2.json
+oldDatumFile0=$tempDir/$BLOCKCHAIN_PREFIX/datums/bid-1.json
+oldDatumHash0=$(cat $tempDir/$BLOCKCHAIN_PREFIX/datums/0/bid-1-hash.txt)
+newDatumHash0=$(cat $tempDir/$BLOCKCHAIN_PREFIX/datums/0/bid-2-hash.txt)
+oldDatumFil1=$tempDir/$BLOCKCHAIN_PREFIX/datums/1/bid-1.json
+oldDatumHash1=$(cat $tempDir/$BLOCKCHAIN_PREFIX/datums/1/bid-1-hash.txt)
+newDatumHash1=$(cat $tempDir/$BLOCKCHAIN_PREFIX/datums/1/bid-2-hash.txt)
+newDatumFile=$tempDir/$BLOCKCHAIN_PREFIX/datums/0/bid-2.json
 bidAmount=30000000
-redeemerFile=$baseDir/$BLOCKCHAIN_PREFIX/redeemers/bid-2.json
+redeemerFile=$tempDir/$BLOCKCHAIN_PREFIX/redeemers/bid-2.json
 oldBidder=$(cat ~/$BLOCKCHAIN_PREFIX/buyer.addr)
 oldAmount=10000000
 

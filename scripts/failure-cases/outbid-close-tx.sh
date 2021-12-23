@@ -1,6 +1,7 @@
 set -eux
 thisDir=$(dirname "$0")
 baseDir=$thisDir/../
+tempDir=$baseDir/../temp
 
 $baseDir/hash-plutus.sh
 $baseDir/hash-datums.sh
@@ -13,8 +14,8 @@ outFile=temp/close-tx.01
 
 sellerAddr=$(cat ~/$BLOCKCHAIN_PREFIX/seller.addr)
 value="d6cfdbedd242056674c0e51ead01785497e3a48afbbb146dc72ee1e2.123456"
-closeDatumFile=$baseDir/$BLOCKCHAIN_PREFIX/datums/0/bid-2.json
-closeDatumHash=$(cat $baseDir/$BLOCKCHAIN_PREFIX/datums/0/bid-2-hash.txt)
+closeDatumFile=$tempDir/$BLOCKCHAIN_PREFIX/datums/0/bid-2.json
+closeDatumHash=$(cat $tempDir/$BLOCKCHAIN_PREFIX/datums/0/bid-2-hash.txt)
 winningBuyer=$(cat ~/$BLOCKCHAIN_PREFIX/buyer1.addr)
 sellerAmount=27000000
 royaltyAmount=1500000
@@ -22,7 +23,7 @@ royaltyAddr=$(cat ~/$BLOCKCHAIN_PREFIX/royalities.addr)
 marketplaceAmount=1500000
 marketplaceAddr=$(cat ~/$BLOCKCHAIN_PREFIX/marketplace.addr)
 
-closeRedeemerFile="$baseDir/$BLOCKCHAIN_PREFIX/redeemers/close.json"
+closeRedeemerFile="$tempDir/$BLOCKCHAIN_PREFIX/redeemers/close.json"
 
 
 output1="1724100 lovelace + 1 $value"
@@ -30,10 +31,10 @@ output1="1724100 lovelace + 1 $value"
 buyerAddr=$(cat ~/$BLOCKCHAIN_PREFIX/attacker.addr)
 signingKey=~/$BLOCKCHAIN_PREFIX/attacker.skey
 value=d6cfdbedd242056674c0e51ead01785497e3a48afbbb146dc72ee1e2.123456
-oldDatumFile=$baseDir/$BLOCKCHAIN_PREFIX/datums/1/seller-bid-1.json
+oldDatumFile=$tempDir/$BLOCKCHAIN_PREFIX/datums/1/seller-bid-1.json
 oldDatumHash=$(cat $baseDir/$BLOCKCHAIN_PREFIX/datums/1/seller-bid-1-hash.txt)
-newDatumHash=$(cat $baseDir/$BLOCKCHAIN_PREFIX/datums/1/bid-2-hash.txt)
-newDatumFile=$baseDir/$BLOCKCHAIN_PREFIX/datums/1/bid-2.json
+newDatumHash=$(cat $tempDir/$BLOCKCHAIN_PREFIX/datums/1/bid-2-hash.txt)
+newDatumFile=$tempDir/$BLOCKCHAIN_PREFIX/datums/1/bid-2.json
 bidAmount=30000000
 redeemerFile=$baseDir/$BLOCKCHAIN_PREFIX/redeemers/bid-2.json
 oldBidder=$(cat ~/$BLOCKCHAIN_PREFIX/buyer.addr)
