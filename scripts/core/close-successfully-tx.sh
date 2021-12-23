@@ -12,10 +12,8 @@ datumHash=$5
 winningBuyer=$6
 sellerAmount=$7
 sellerAddr=$8
-royaltyAmount=$9
-royaltyAddr="${10}"
-marketplaceAmount="${11}"
-marketplaceAddr="${12}"
+marketplaceAmount="${9}"
+marketplaceAddr="${10}"
 
 
 nftValidatorFile=$baseDir/auction.plutus
@@ -50,7 +48,6 @@ cardano-cli transaction build \
     --tx-in-collateral $(cardano-cli-balance-fixer collateral --address $marketplaceAddr $BLOCKCHAIN) \
     --tx-out "$winningBuyer + $output1" \
     --tx-out "$sellerAddr + $sellerAmount lovelace" \
-    --tx-out "$royaltyAddr + $royaltyAmount lovelace "  \
     --tx-out "$marketplaceAddr + $marketplaceAmount lovelace $extraOutput"  \
     --change-address $marketplaceAddr \
     --protocol-params-file scripts/$BLOCKCHAIN_PREFIX/protocol-parameters.json \

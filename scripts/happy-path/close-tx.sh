@@ -14,7 +14,5 @@ $baseDir/core/close-successfully-tx.sh \
   $(cat ~/$BLOCKCHAIN_PREFIX/buyer1.addr) \
   27000000 \
   $(cat ~/$BLOCKCHAIN_PREFIX/seller.addr) \
-  1500000 \
-  $(cat ~/$BLOCKCHAIN_PREFIX/royalities.addr) \
-  1500000 \
+  3000000 \
   $(cat ~/$BLOCKCHAIN_PREFIX/marketplace.addr)
