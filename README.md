@@ -1,3 +1,15 @@
+<h1 align="center">
+  <a href="https://adablobs.io">
+    <img alt="ADABlobs Logo" src="./images/Logo.png" width="100" />
+    <img alt="ADABlobs LogoText" src="./images/LogoText.png" width="480" />
+  </a>
+</h1>
+
+<div align="center">
+  <img alt="Bob" src="./images/001 - Bob.png" width="256" />
+  <img alt="Yolg Reverse" src="./images/007 - Yolg - Reverse.png" width="256" />
+</div>
+
 # A NFT Auction Smart Contract
 
 This repo contains the source for a Plutus NFT auction smart contract. The source for the smart contract is located in `src/Auction/Auction.hs`.
