@@ -10,6 +10,8 @@
   <img alt="Yolg Reverse" src="./images/007 - Yolg - Reverse.png" width="256" />
 </div>
 
+Welcome to ADABlobs! The cutest and most adorable NFT collection on Cardano. There are 300 Blob NFTs to collect with 1 new Blob being available each week until all 300 are released. ADA Blobs is the first auction marketplace on the Cardano Blockchain by leveraging Cardano's Plutus Smart Contract capability. This repository contains the full Plutus Smart Contract implementation for ADA Blobs. The repository for the full front end website implementation can be found [here](https://github.com/NicholasMaselli/ADABlobs)
+
 # A NFT Auction Smart Contract
 
 This repo contains the source for a Plutus NFT auction smart contract. The source for the smart contract is located in `src/Auction/Auction.hs`.
